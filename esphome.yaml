@@ -1,0 +1,115 @@
+esphome:
+  name: sonoff-rf-bridge
+  friendly_name: Sonoff RF Bridge
+  name_add_mac_suffix: true
+
+esp8266:
+  board: esp8285
+
+# Enable logging
+logger:
+  # disable serial logging to free up the serial port for the 433MHz receiver
+  baud_rate: 0
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret rf_bridge_encryption_key
+
+  services:
+  # send RF code using 433Mhz transmitter
+    - service: send_rf_code
+      variables:
+        sync: int
+        low: int
+        high: int
+        code: int
+      then:
+        - rf_bridge.send_code:
+            sync: !lambda 'return sync;'
+            low: !lambda 'return low;'
+            high: !lambda 'return high;'
+            code: !lambda 'return code;'
+    - service: send_rf_advanced_code
+      variables:
+        length: int
+        protocol: int
+        code: string
+      then:
+        - rf_bridge.send_advanced_code:
+            length: !lambda 'return length;'
+            protocol: !lambda 'return protocol;'
+            code: !lambda 'return code;'
+    - service: learn
+      then:
+        - rf_bridge.learn
+    - service: start_advanced_sniffing
+      then:
+        - rf_bridge.start_advanced_sniffing
+    - service: stop_advanced_sniffing
+      then:
+        - rf_bridge.stop_advanced_sniffing
+    - service: start_bucket_sniffing
+      then:
+        - rf_bridge.start_bucket_sniffing
+    
+
+ota:
+  password: !secret rf_bridge_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Sonoff-Rf-Bridge"
+    password: !secret rf_bridge_fallback_ap_password
+
+captive_portal:
+
+binary_sensor:
+- platform: status
+  name: "RF Bridge Status"
+
+# uncomment if you have the hardware mod of desoldering the logo backlight from power and connecting it to the GPIO
+# output:
+#   - platform: esp8266_pwm
+#     pin: GPIO12
+#     frequency: 1000 Hz
+#     id: logo_pwm_output
+# light:
+#   - platform: monochromatic
+#     output: logo_pwm_output
+#     name: "Logo LED"
+#     entity_category: config
+
+status_led:
+  pin:
+    number: GPIO13
+    inverted: yes
+
+uart:
+  tx_pin: 1
+  rx_pin: 3
+  baud_rate: 19200
+
+rf_bridge:
+  on_code_received:
+    then:
+      - homeassistant.event:
+          event: esphome.rf_code_received
+          data:
+            sync: !lambda 'return format_hex(data.sync);'
+            low: !lambda 'return format_hex(data.low);'
+            high: !lambda 'return format_hex(data.high);'
+            code: !lambda 'return format_hex(data.code);'
+  on_advanced_code_received:
+    then:
+      - homeassistant.event:
+          event: esphome.rf_advanced_code_received
+          data:
+              length: !lambda 'return format_hex(data.length);'
+              protocol: !lambda 'return format_hex(data.protocol);'
+              code: !lambda 'return data.code;'

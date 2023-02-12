@@ -1,0 +1,20 @@
+template:
+  - trigger:
+    # TODO: consolidate both open/close event comparison using templates as in https://www.home-assistant.io/docs/automation/trigger/#event-trigger ?
+    # open
+    - platform: event
+      event_type: esphome.rf_code_received
+      event_data:
+        code: 0008b2e3
+    # closed
+    - platform: event
+      event_type: esphome.rf_code_received
+      event_data:
+        code: 0008b2e9
+    binary_sensor:
+      - name: "Front door"
+        # add a random unique ID so you can customize them in the UI
+        unique_id: 2bWLluq3CIJgELW8Uog1O7AUwXVFif
+        device_class: door
+        # use the "open" code here
+        state: "{{ trigger.event.data.code == '0008b2e3' }}"
